@@ -62,9 +62,11 @@ h1,h2,h3{font-weight:600}
 
 /* ---------- Header ---------- */
 #hdr{
-  position:sticky; top:0; z-index:50; height:48px;
+  position:sticky; top:0; z-index:50;
+  height:calc(48px + env(safe-area-inset-top));
+  padding:env(safe-area-inset-top) 14px 0;
   display:flex; align-items:center; justify-content:space-between;
-  padding:0 14px; background:rgba(13,13,13,.96); border-bottom:1px solid var(--border);
+  background:rgba(13,13,13,.96); border-bottom:1px solid var(--border);
   backdrop-filter:blur(8px);
 }
 #hdr .logo{font-family:var(--mono); font-size:15px; font-weight:700; letter-spacing:.5px}

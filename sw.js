@@ -29,6 +29,20 @@ self.addEventListener('fetch', e => {
   if (url.hostname.includes('open-meteo.com') || url.hostname.includes('openstreetmap.org')) return;
   if (e.request.method !== 'GET') return;
 
+  // App shell: network-first so updates deploy immediately; cache fallback offline
+  if (url.origin === location.origin &&
+      (e.request.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/'))) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      }).catch(() => caches.match(e.request, { ignoreSearch: true })
+        .then(hit => hit || caches.match('./index.html')))
+    );
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request, { ignoreSearch: url.origin === location.origin }).then(hit => {
       if (hit) return hit;
