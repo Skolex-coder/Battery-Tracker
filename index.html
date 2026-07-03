@@ -11,7 +11,7 @@
 <title>PackTracker</title>
 <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%230D0D0D"/><rect x="14" y="20" width="32" height="24" rx="4" fill="none" stroke="%23F5A623" stroke-width="4"/><rect x="46" y="27" width="6" height="10" rx="2" fill="%23F5A623"/><path d="M30 24 24 34h6l-2 8 8-11h-6l2-7z" fill="%23F5A623"/></svg>'>
 <script>
-// Inline manifest via data URI (single-file constraint; sw.js is the only companion file) ahhh more testing
+// Inline manifest via data URI (single-file constraint; sw.js is the only companion file)
 (function(){
   const manifest = {
     name: 'PackTracker', short_name: 'PackTracker',
@@ -151,6 +151,7 @@ h1,h2,h3{font-weight:600}
 .pc-main{padding:12px 14px}
 .pc-top{display:flex; align-items:center; justify-content:space-between; gap:8px}
 .pc-name{font-family:var(--mono); font-size:18px; font-weight:700}
+.pc-editico{color:var(--muted); font-size:12px; margin-left:6px}
 .badge{font-size:10px; font-weight:600; padding:3px 8px; border-radius:6px; white-space:nowrap}
 .badge.good{background:var(--green-dim); color:var(--green)}
 .badge.watch{background:var(--amber-dim); color:var(--amber)}
@@ -615,9 +616,9 @@ function packCardHTML(p, showDrift) {
   return `<div class="pack-card ${cls}">
     <div class="pc-main">
       <div class="pc-top" onclick="openEditPack('${p.id}')">
-        <span class="pc-name">${esc(p.name)}</span>${badge}
+        <span class="pc-name">${esc(p.name)}<span class="pc-editico">✎</span></span>${badge}
       </div>
-      <div class="pc-type">${esc(p.type) || '<span class="muted">No type set</span>'}</div>
+      <div class="pc-type" onclick="openEditPack('${p.id}')">${esc(p.type) || '<span class="muted">Tap to add details</span>'}</div>
       <div class="pc-tally">${tallySVG(p.cycles)}<span class="pc-cyc">${p.cycles} cycles</span></div>
       <div class="pc-meta">${irHtml}${cpc}</div>
       ${driftHtml}
@@ -713,20 +714,48 @@ function groupOptionsHTML(selected) {
   return `<option value="">Ungrouped</option>${opts}`;
 }
 
-function openAddPack() {
-  openModal(sheetHead('Add Pack') + `
+function openAddPack(prefill) {
+  const pf = prefill || {};
+  openModal(sheetHead(pf.isDup ? 'Duplicate Pack' : 'Add Pack') + `
     <div class="field"><label class="lbl">Pack Name (max 6 chars)</label>
-      <input id="f-name" class="mono" maxlength="6" placeholder="1A" autocapitalize="characters"></div>
+      <input id="f-name" class="mono" maxlength="6" placeholder="1A" autocapitalize="characters" value="${esc(pf.name || '')}"></div>
     <div class="field"><label class="lbl">Type / Model</label>
-      <input id="f-type" placeholder="Ovonic Rebel 2.0 1550mAh 6S 150C"></div>
+      <input id="f-type" placeholder="Ovonic Rebel 2.0 1550mAh 6S 150C" value="${esc(pf.type || '')}"></div>
     <div class="field"><label class="lbl">Purchase Price (AUD, optional)</label>
-      <input id="f-price" class="mono" type="number" step="0.01" min="0" inputmode="decimal" placeholder="34.99"></div>
+      <input id="f-price" class="mono" type="number" step="0.01" min="0" inputmode="decimal" placeholder="34.99" value="${pf.price != null ? pf.price : ''}"></div>
     <div class="field"><label class="lbl">Pack Group</label>
-      <select id="f-group">${groupOptionsHTML(null)}</select></div>
+      <select id="f-group">${groupOptionsHTML(pf.groupId || null)}</select></div>
     <div class="field"><label class="lbl">Starting Cycles</label>
       <input id="f-cycles" class="mono" type="number" min="0" step="1" inputmode="numeric" value="0"></div>
-    <button class="btn btn-primary" onclick="saveNewPack()">Add Pack</button>`,
-    sheet => { sheet.querySelector('#f-name').focus(); });
+    <button class="btn btn-primary" onclick="saveNewPack()">${pf.isDup ? 'Add Duplicate' : 'Add Pack'}</button>`,
+    sheet => { const n = sheet.querySelector('#f-name'); n.focus(); if (pf.isDup) n.select(); });
+}
+
+/* Suggest next free name: bump trailing letter/digit (1A→1B, T1→T2), else append 2 */
+function suggestName(base) {
+  const taken = new Set(S.packs.map(p => p.name));
+  const bump = s => {
+    const last = s.slice(-1);
+    if (/[A-Y]/.test(last)) return s.slice(0, -1) + String.fromCharCode(last.charCodeAt(0) + 1);
+    if (/[0-8]/.test(last)) return s.slice(0, -1) + String(Number(last) + 1);
+    return null;
+  };
+  let cand = base;
+  for (let i = 0; i < 30; i++) {
+    const next = bump(cand);
+    if (!next) break;
+    cand = next;
+    if (!taken.has(cand)) return cand;
+  }
+  cand = (base + '2').slice(0, 6);
+  let n = 2;
+  while (taken.has(cand) && n < 99) { n++; cand = (base + n).slice(0, 6); }
+  return taken.has(cand) ? '' : cand;
+}
+
+function duplicatePack(id) {
+  const p = packById(id); if (!p) return;
+  openAddPack({ isDup: true, name: suggestName(p.name), type: p.type, price: p.price, groupId: p.groupId });
 }
 function saveNewPack() {
   const name = $('#f-name').value.trim().toUpperCase().slice(0, 6);
@@ -757,7 +786,9 @@ function openEditPack(id) {
       <select id="f-group">${groupOptionsHTML(p.groupId)}</select></div>
     <div class="field"><label class="lbl">Cycles</label>
       <input id="f-cycles" class="mono" type="number" min="0" step="1" inputmode="numeric" value="${p.cycles}"></div>
-    <button class="btn btn-primary" onclick="saveEditPack('${p.id}')">Save Changes</button>`);
+    <button class="btn btn-primary" onclick="saveEditPack('${p.id}')">Save Changes</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-outline" onclick="duplicatePack('${p.id}')">⧉ Duplicate This Pack</button>`);
 }
 function saveEditPack(id) {
   const p = packById(id); if (!p) return;
@@ -1889,7 +1920,7 @@ function doImport(text) {
 document.addEventListener('DOMContentLoaded', () => {
   load();
   $$('#nav button').forEach(b => b.addEventListener('click', () => nav(b.dataset.pg)));
-  $('#b-addpack').addEventListener('click', openAddPack);
+  $('#b-addpack').addEventListener('click', () => openAddPack());
   $('#b-io').addEventListener('click', openIOModal);
   render();
   // Service worker for offline (sw.js sits next to index.html)
