@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0D0D0D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PackTracker">
+<title>PackTracker</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%230D0D0D"/><rect x="14" y="20" width="32" height="24" rx="4" fill="none" stroke="%23F5A623" stroke-width="4"/><rect x="46" y="27" width="6" height="10" rx="2" fill="%23F5A623"/><path d="M30 24 24 34h6l-2 8 8-11h-6l2-7z" fill="%23F5A623"/></svg>'>
+<script>
+// Inline manifest via data URI (single-file constraint; sw.js is the only companion file)
+(function(){
+  const manifest = {
+    name: 'PackTracker', short_name: 'PackTracker',
+    start_url: './', scope: './', display: 'standalone',
+    background_color: '#0D0D0D', theme_color: '#0D0D0D',
+    icons: [{
+      src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="%230D0D0D"/><rect x="14" y="20" width="32" height="24" rx="4" fill="none" stroke="%23F5A623" stroke-width="4"/><rect x="46" y="27" width="6" height="10" rx="2" fill="%23F5A623"/><path d="M30 24 24 34h6l-2 8 8-11h-6l2-7z" fill="%23F5A623"/></svg>',
+      sizes: 'any', type: 'image/svg+xml', purpose: 'any'
+    }]
+  };
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest));
+  document.head.appendChild(link);
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0D0D0D; --surface:#1A1A1A; --surface2:#242424; --surface3:#2E2E2E;
+  --amber:#F5A623; --amber-dim:#7A5010;
+  --red:#C0392B; --red-dim:#5C1A13;
+  --green:#27AE60; --green-dim:#144D2E;
+  --blue:#2980B9; --purple:#8E44AD;
+  --text:#E8E8E8; --muted:#666666; --border:#2E2E2E;
+  --mono:'JetBrains Mono',monospace; --sans:'Inter',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--sans); font-size:14px;
+  min-height:100vh; overscroll-behavior-y:none;
+  padding-bottom:calc(56px + env(safe-area-inset-bottom));
+}
+button{font-family:var(--sans); border:none; background:none; color:var(--text); cursor:pointer; font-size:14px}
+input,select,textarea{
+  font-family:var(--sans); font-size:16px; color:var(--text);
+  background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+  padding:11px 12px; width:100%; outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--amber)}
+input.mono{font-family:var(--mono)}
+::placeholder{color:var(--muted)}
+h1,h2,h3{font-weight:600}
+
+/* ---------- Header ---------- */
+#hdr{
+  position:sticky; top:0; z-index:50; height:48px;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 14px; background:rgba(13,13,13,.96); border-bottom:1px solid var(--border);
+  backdrop-filter:blur(8px);
+}
+#hdr .logo{font-family:var(--mono); font-size:15px; font-weight:700; letter-spacing:.5px}
+#hdr .logo .a{color:var(--amber)} #hdr .logo .m{color:var(--muted)}
+#hdr .hdr-actions{display:flex; gap:8px; align-items:center}
+.btn-io{
+  font-size:15px; padding:8px 10px; border-radius:8px; background:var(--surface2);
+  border:1px solid var(--border); min-height:36px;
+}
+.btn-addpack{
+  font-family:var(--sans); font-weight:600; font-size:13px;
+  background:var(--amber); color:#0D0D0D; padding:8px 12px; border-radius:8px; min-height:36px;
+}
+
+/* ---------- Pages / Nav ---------- */
+.page{display:none; padding:14px; max-width:640px; margin:0 auto}
+.page.on{display:block}
+#nav{
+  position:fixed; bottom:0; left:0; right:0; z-index:50; height:calc(56px + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom);
+  background:rgba(13,13,13,.97); border-top:1px solid var(--border);
+  display:grid; grid-template-columns:repeat(4,1fr);
+}
+#nav button{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  font-size:10px; color:var(--muted); min-height:44px; transition:background .1s;
+}
+#nav button .nico{font-size:17px; line-height:1}
+#nav button.on{color:var(--amber)}
+
+/* ---------- Cards / generic ---------- */
+.card{background:var(--surface); border:1px solid var(--border); border-radius:12px; margin-bottom:12px; overflow:hidden}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono)}
+.lbl{font-size:9px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-weight:600}
+.btn{
+  display:block; width:100%; text-align:center; font-weight:600; font-size:14px;
+  padding:13px; border-radius:10px; min-height:44px; transition:opacity .2s;
+}
+.btn:active{opacity:.75}
+.btn-primary{background:var(--amber); color:#0D0D0D}
+.btn-outline{background:transparent; border:1px solid var(--border); color:var(--text)}
+.btn-danger{background:var(--red); color:#fff}
+.btn-ghost-danger{background:transparent; border:1px solid var(--red); color:var(--red)}
+.row{display:flex; align-items:center; gap:8px}
+.spacer{flex:1}
+
+/* ---------- Summary strip ---------- */
+#summary{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+  background:var(--border); border:1px solid var(--border); border-radius:12px;
+  overflow:hidden; margin-bottom:14px;
+}
+#summary .cell{background:var(--surface); padding:12px 8px; text-align:center}
+#summary .num{font-family:var(--mono); font-size:20px; font-weight:700; color:var(--amber)}
+#summary .cell .lbl{display:block; margin-top:3px}
+
+/* ---------- Groups ---------- */
+.grp-hdr{
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:12px 14px; margin-bottom:8px; cursor:pointer; transition:background .1s;
+}
+.grp-hdr:active{background:var(--surface2)}
+.grp-hdr .g-top{display:flex; align-items:center; gap:8px}
+.grp-dot{width:10px; height:10px; border-radius:50%; flex:none}
+.grp-name{font-family:var(--mono); font-size:13px; font-weight:700; letter-spacing:.5px; text-transform:uppercase}
+.grp-count{margin-left:auto; font-size:11px; color:var(--muted)}
+.grp-caret{color:var(--muted); font-size:10px; margin-left:6px}
+.grp-sub{font-size:11px; color:var(--muted); margin-top:4px; font-family:var(--mono)}
+.grp-warn{font-size:11px; color:var(--amber); margin-top:4px}
+.grp-body{margin-bottom:12px}
+.grp-section{margin-bottom:4px}
+
+/* ---------- Pack cards ---------- */
+.pack-card{
+  background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--green);
+  border-radius:12px; margin-bottom:10px; overflow:hidden;
+}
+.pack-card.warn{border-left-color:var(--amber)}
+.pack-card.bad{border-left-color:var(--red)}
+.pack-card.retired-card{opacity:.55; border-left-color:var(--muted)}
+.pc-main{padding:12px 14px}
+.pc-top{display:flex; align-items:center; justify-content:space-between; gap:8px}
+.pc-name{font-family:var(--mono); font-size:18px; font-weight:700}
+.badge{font-size:10px; font-weight:600; padding:3px 8px; border-radius:6px; white-space:nowrap}
+.badge.good{background:var(--green-dim); color:var(--green)}
+.badge.watch{background:var(--amber-dim); color:var(--amber)}
+.badge.retire{background:var(--red-dim); color:#E74C3C}
+.badge.retired{background:var(--surface3); color:var(--muted)}
+.pc-type{font-size:11px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pc-tally{display:flex; align-items:center; gap:10px; margin-top:9px; flex-wrap:wrap}
+.pc-cyc{font-family:var(--mono); font-size:12px; color:var(--text)}
+.pc-meta{display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap}
+.ir-chip{font-family:var(--mono); font-size:11px; padding:3px 8px; border-radius:6px; background:var(--surface2); border:1px solid var(--border)}
+.ir-chip.g{color:var(--green); border-color:var(--green-dim)}
+.ir-chip.a{color:var(--amber); border-color:var(--amber-dim)}
+.ir-chip.r{color:#E74C3C; border-color:var(--red-dim)}
+.cpc{font-family:var(--mono); font-size:11px; color:var(--muted)}
+.drift-warn{font-size:11px; color:var(--amber); margin-top:7px}
+.pc-actions{
+  display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--border);
+}
+.pc-actions button{
+  padding:11px 4px; font-size:11px; font-weight:600; min-height:44px;
+  border-right:1px solid var(--border); transition:background .1s;
+}
+.pc-actions button:last-child{border-right:none}
+.pc-actions button:active{background:var(--surface2)}
+.pc-actions .b-cyc{color:var(--amber)}
+.pc-actions .b-undo{color:var(--muted)}
+.pc-actions .b-chart{color:var(--blue)}
+.pc-actions .b-ret{color:var(--red)}
+.pc-actions .b-unret{color:var(--green)}
+.empty-state{padding:36px 20px; text-align:center}
+.empty-state .big{font-size:30px; margin-bottom:10px}
+.empty-state p{color:var(--muted); font-size:13px; margin:8px 0 16px}
+.section-lbl{font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-weight:700; margin:16px 2px 8px}
+
+/* ---------- Log page ---------- */
+.hero{border:1px solid var(--amber); border-radius:12px; background:var(--surface); margin-bottom:14px; overflow:hidden}
+.hero-hd{padding:13px 14px; border-bottom:1px solid var(--border)}
+.live{display:flex; align-items:center; gap:8px}
+.live .dotp{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.live .t{font-size:11px; font-weight:700; letter-spacing:1px; color:var(--green)}
+.live .elapsed{margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--muted)}
+.hero-spot{font-family:var(--mono); font-size:16px; font-weight:700; margin-top:7px}
+.wx-chips{display:flex; gap:6px; margin-top:7px; flex-wrap:wrap}
+.wx-chip{font-family:var(--mono); font-size:11px; background:var(--surface2); border:1px solid var(--border); padding:3px 8px; border-radius:6px; color:var(--muted)}
+.sess-pack{
+  display:flex; align-items:center; gap:10px; padding:11px 14px;
+  border-bottom:1px solid var(--border); min-height:44px;
+}
+.sp-name{
+  font-family:var(--mono); font-weight:700; font-size:13px; background:var(--surface2);
+  border:1px solid var(--border); border-radius:6px; padding:4px 8px; flex:none;
+}
+.sp-info{font-size:11px; color:var(--muted); font-family:var(--mono); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sp-land{
+  flex:none; font-size:12px; font-weight:600; color:var(--amber);
+  border:1px solid var(--amber-dim); background:transparent; border-radius:8px;
+  padding:8px 12px; min-height:36px; transition:background .1s;
+}
+.sp-land:active{background:var(--amber-dim)}
+.sp-done{flex:none; font-family:var(--mono); font-size:12px; color:var(--green)}
+.hero-foot{padding:12px 14px; display:flex; flex-direction:column; gap:8px}
+.sess-item{padding:12px 14px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s}
+.sess-item:last-child{border-bottom:none}
+.sess-item:active{background:var(--surface2)}
+.si-top{display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+.si-date{font-family:var(--mono); font-size:12px; color:var(--amber); font-weight:700}
+.si-spot{font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.si-chips{display:flex; gap:5px; margin-top:6px; flex-wrap:wrap}
+.si-chip{font-family:var(--mono); font-size:10px; background:var(--surface2); border:1px solid var(--border); padding:2px 6px; border-radius:5px}
+.si-wx{font-size:11px; color:var(--muted); margin-top:5px; font-family:var(--mono)}
+
+/* ---------- Session pack selection ---------- */
+.sel-grp{border:1px solid var(--border); border-radius:12px; background:var(--surface2); margin-bottom:8px; overflow:hidden}
+.sel-grp.selgrp{border-color:var(--amber)}
+.sel-grp-hd{display:flex; align-items:center; gap:8px; padding:12px; cursor:pointer; min-height:44px; transition:background .1s}
+.sel-grp-hd:active{background:var(--surface3)}
+.sel-grp-hd .grp-name{font-size:12px}
+.sel-check{margin-left:auto; color:var(--amber); font-weight:700; font-size:13px}
+.sel-caret{color:var(--muted); font-size:10px; margin-left:6px}
+.sel-tiles{display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:0 10px 10px}
+.sel-tile{
+  border:1px solid var(--border); border-radius:10px; background:var(--surface); padding:10px;
+  cursor:pointer; opacity:.5; transition:opacity .2s; min-height:44px; position:relative;
+}
+.sel-tile.sel{border-color:var(--amber); opacity:1}
+.sel-tile.driftb{border-color:var(--amber-dim)}
+.sel-tile.driftb.sel{border-color:var(--amber)}
+.sel-tile .t-name{font-family:var(--mono); font-size:16px; font-weight:700}
+.sel-tile .t-check{position:absolute; top:8px; right:10px; color:var(--amber); font-weight:700}
+.sel-tile .t-meta{font-family:var(--mono); font-size:10px; color:var(--muted); margin-top:4px}
+.sel-tile .t-dot{margin-top:5px; font-size:10px}
+
+/* ---------- Stats ---------- */
+.stats-hint{font-size:10px; color:var(--muted); margin-bottom:10px; text-align:center}
+.graph-card{background:var(--surface); border:1px solid var(--border); border-radius:12px; margin-bottom:12px}
+.graph-card.dragging{opacity:.5; border:1px dashed var(--amber)}
+.graph-card.droptarget{border:1px dashed var(--amber)}
+.gc-hd{padding:12px 14px 0; display:flex; align-items:flex-start}
+.gc-title{font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase}
+.gc-sub{font-size:10px; color:var(--muted); margin-top:2px}
+.gc-handle{margin-left:auto; color:var(--muted); font-size:15px; cursor:grab; padding:2px 4px; touch-action:none; user-select:none}
+.gc-canvas-wrap{padding:10px 10px 4px; height:214px; position:relative}
+.gc-foot{padding:6px 14px 12px; display:flex; gap:8px; flex-wrap:wrap}
+.leg{display:flex; align-items:center; gap:4px; font-family:var(--mono); font-size:9px; color:var(--muted)}
+.leg .ld{width:7px; height:7px; border-radius:50%}
+.th-chip{font-family:var(--mono); font-size:9px; padding:2px 6px; border-radius:5px; border:1px solid var(--border); color:var(--muted)}
+.gc-empty{
+  height:214px; display:flex; align-items:center; justify-content:center; text-align:center;
+  color:var(--muted); font-size:12px; padding:0 30px;
+}
+
+/* ---------- Settings ---------- */
+.set-section{margin-bottom:18px}
+.set-row{
+  display:flex; align-items:center; gap:10px; padding:12px 14px;
+  border-bottom:1px solid var(--border); min-height:48px;
+}
+.set-row:last-child{border-bottom:none}
+.set-name{font-size:13px; font-weight:500}
+.set-desc{font-size:11px; color:var(--muted); margin-top:2px}
+.toggle{
+  margin-left:auto; flex:none; width:44px; height:26px; border-radius:12px;
+  background:var(--surface3); position:relative; transition:background .1s; cursor:pointer;
+}
+.toggle::after{
+  content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%;
+  background:var(--muted); transition:background .1s;
+}
+.toggle.on{background:var(--amber-dim)}
+.toggle.on::after{transform:translateX(18px); background:var(--amber)}
+.grp-row-del,.gf-del{
+  margin-left:auto; flex:none; color:var(--red); font-size:12px; font-weight:600;
+  padding:8px 10px; min-height:36px; border-radius:8px; border:1px solid var(--red-dim);
+  transition:background .1s;
+}
+.set-add{margin:10px 14px 14px}
+
+/* ---------- Modals (bottom sheets) ---------- */
+.backdrop{
+  position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.65);
+  display:none; align-items:flex-end; justify-content:center;
+}
+.backdrop.on{display:flex}
+.sheet{
+  width:100%; max-width:640px; max-height:88vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  background:var(--surface); border:1px solid var(--border); border-bottom:none;
+  border-radius:12px 12px 0 0; padding:16px 16px calc(20px + env(safe-area-inset-bottom));
+}
+.sheet-hd{display:flex; align-items:center; margin-bottom:14px}
+.sheet-title{font-size:13px; font-weight:700; letter-spacing:1px; text-transform:uppercase}
+.sheet-x{margin-left:auto; color:var(--muted); font-size:16px; padding:6px 10px; min-height:36px}
+.field{margin-bottom:13px}
+.field .lbl{display:block; margin-bottom:6px}
+.swatches{display:grid; grid-template-columns:repeat(6,1fr); gap:8px}
+.swatch{width:100%; aspect-ratio:1; border-radius:8px; border:2px solid transparent; cursor:pointer}
+.swatch.sel{border-color:#fff}
+.pick-row{
+  display:flex; align-items:center; gap:10px; padding:11px 12px; min-height:44px;
+  border:1px solid var(--border); border-radius:8px; margin-bottom:6px;
+  background:var(--surface2); cursor:pointer; transition:background .1s;
+}
+.pick-row.sel{border-color:var(--amber)}
+.pick-row .pr-name{font-family:var(--mono); font-weight:700; font-size:14px}
+.pick-row .pr-meta{font-size:11px; color:var(--muted); font-family:var(--mono)}
+.pick-row .pr-check{margin-left:auto; color:var(--amber); font-weight:700}
+.pick-warn{font-size:11px; color:var(--amber); margin:2px 0 8px}
+.gps-status{
+  display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);
+  padding:9px 0; font-family:var(--mono); min-height:24px;
+}
+.spinner{
+  width:12px; height:12px; border:2px solid var(--surface3); border-top-color:var(--amber);
+  border-radius:50%; flex:none; animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.big-volt{font-family:var(--mono); font-size:22px; text-align:center}
+.detail-kv{display:flex; padding:7px 0; border-bottom:1px solid var(--surface2); font-size:12px; gap:10px}
+.detail-kv .k{color:var(--muted); flex:none; width:82px}
+.detail-kv .v{font-family:var(--mono)}
+.io-area{
+  width:100%; height:130px; font-family:var(--mono); font-size:10px; resize:none;
+}
+#toast{
+  position:fixed; bottom:calc(70px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
+  z-index:200; background:var(--surface2); border:1px solid var(--amber); color:var(--text);
+  font-size:12px; padding:10px 16px; border-radius:10px; max-width:88vw;
+  opacity:0; pointer-events:none; transition:opacity .2s; text-align:center;
+}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<header id="hdr">
+  <div class="logo"><span class="a">PACK</span><span class="m">TRACKER</span></div>
+  <div class="hdr-actions" id="hdr-actions">
+    <button class="btn-io" id="b-io" aria-label="Import export">⬆⬇</button>
+    <button class="btn-addpack" id="b-addpack">+ Pack</button>
+  </div>
+</header>
+
+<main>
+  <div class="page on" id="pg-fleet"></div>
+  <div class="page" id="pg-log"></div>
+  <div class="page" id="pg-stats"></div>
+  <div class="page" id="pg-settings"></div>
+</main>
+
+<nav id="nav">
+  <button data-pg="fleet" class="on"><span class="nico">🔋</span>Fleet</button>
+  <button data-pg="log"><span class="nico">📝</span>Log</button>
+  <button data-pg="stats"><span class="nico">📊</span>Stats</button>
+  <button data-pg="settings"><span class="nico">⚙️</span>Settings</button>
+</nav>
+
+<div class="backdrop" id="modal-bd"><div class="sheet" id="modal-sheet"></div></div>
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   PackTracker v3 — single-file FPV battery fleet manager
+   ============================================================ */
+'use strict';
+
+/* ================= Constants ================= */
+const STORE_KEY = 'packtracker_v3';
+const PACK_COLORS = [
+  '#F5A623', '#27AE60', '#2980B9', '#9B59B6',
+  '#E74C3C', '#1ABC9C', '#F39C12', '#3498DB',
+  '#E67E22', '#8E44AD', '#16A085', '#D35400'
+];
+const GRAPH_DEFS = {
+  irTrend:      { title: 'IR Trends, All Packs',    sub: 'Internal resistance vs cycle count' },
+  voltTrend:    { title: 'Landing Voltage Trends',  sub: 'Resting V/cell vs cycle count' },
+  cycleDist:    { title: 'Cycle Count, All Packs',  sub: 'Colour-coded by health status' },
+  sessionFreq:  { title: 'Session Frequency',       sub: 'Pack-flights per week' },
+  packHealth:   { title: 'Pack Health Dashboard',   sub: 'Cycles vs IR — lower-left is healthiest' },
+  costPerCycle: { title: 'Cost Per Cycle',          sub: 'Purchase price ÷ cycles flown' }
+};
+const DEFAULT_SETTINGS = {
+  logVoltage: true, logWeather: true, logLocation: true,
+  cycleDriftThreshold: 5,
+  graphs: { irTrend: true, voltTrend: true, cycleDist: true, sessionFreq: true, packHealth: true, costPerCycle: true },
+  graphOrder: ['irTrend', 'voltTrend', 'cycleDist', 'sessionFreq', 'packHealth', 'costPerCycle']
+};
+
+/* ================= State ================= */
+let S = null;
+
+function defaultState() {
+  return {
+    packs: [], packGroups: [], sessions: [], geofences: [],
+    activeSession: null,
+    settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS))
+  };
+}
+
+function load() {
+  let migrated = false;
+  try { S = JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { S = null; }
+  if (!S || typeof S !== 'object') S = defaultState();
+  // fill missing fields
+  const d = defaultState();
+  for (const k of Object.keys(d)) if (S[k] === undefined) S[k] = d[k];
+  S.settings = Object.assign({}, DEFAULT_SETTINGS, S.settings || {});
+  S.settings.graphs = Object.assign({}, DEFAULT_SETTINGS.graphs, S.settings.graphs || {});
+  if (!Array.isArray(S.settings.graphOrder) || !S.settings.graphOrder.length)
+    S.settings.graphOrder = DEFAULT_SETTINGS.graphOrder.slice();
+  // ensure every graph id present in order
+  for (const id of DEFAULT_SETTINGS.graphOrder)
+    if (!S.settings.graphOrder.includes(id)) S.settings.graphOrder.push(id);
+
+  // Migration from v2 / v1
+  if (!S.packs.length) {
+    for (const oldKey of ['packtracker_v2', 'packtracker_v1']) {
+      try {
+        const old = JSON.parse(localStorage.getItem(oldKey));
+        if (old && Array.isArray(old.packs) && old.packs.length) {
+          S.packs = old.packs.map(p => ({
+            id: p.id || uid(),
+            name: String(p.name || '?').toUpperCase().slice(0, 6),
+            groupId: null,
+            type: p.type || '',
+            price: (typeof p.price === 'number') ? p.price : null,
+            cycles: Number(p.cycles) || 0,
+            retired: !!p.retired,
+            irLog: Array.isArray(p.irLog) ? p.irLog : [],
+            voltLog: Array.isArray(p.voltLog) ? p.voltLog : []
+          }));
+          migrated = true;
+          break;
+        }
+      } catch (e) { /* ignore */ }
+    }
+  }
+  save();
+  if (migrated) setTimeout(() => toast('Data migrated from previous version.'), 400);
+}
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* quota */ }
+}
+
+/* ================= Helpers ================= */
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return Array.from(document.querySelectorAll(sel)); }
+function packById(id) { return S.packs.find(p => p.id === id) || null; }
+function groupById(id) { return S.packGroups.find(g => g.id === id) || null; }
+function latestIR(p) { return p.irLog.length ? p.irLog[p.irLog.length - 1].value : null; }
+function packColor(p) {
+  const i = S.packs.findIndex(x => x.id === p.id);
+  return PACK_COLORS[(i < 0 ? 0 : i) % PACK_COLORS.length];
+}
+function activePacks() { return S.packs.filter(p => !p.retired); }
+
+/* IR status rules */
+function packStatus(p) {
+  const ir = latestIR(p);
+  if ((ir !== null && ir >= 15) || p.cycles >= 400) return 'retire';
+  if ((ir !== null && ir >= 8) || p.cycles >= 250) return 'watch';
+  return 'good';
+}
+function statusBadge(st) {
+  if (st === 'retire') return '<span class="badge retire">Retire Soon</span>';
+  if (st === 'watch') return '<span class="badge watch">Watch IR</span>';
+  return '<span class="badge good">Good ✓</span>';
+}
+function irChipClass(ir) {
+  if (ir === null) return '';
+  if (ir < 3) return 'g';
+  if (ir < 8) return '';
+  if (ir < 15) return 'a';
+  return 'r';
+}
+function healthDot(p) {
+  const st = packStatus(p);
+  return st === 'retire' ? '🔴' : st === 'watch' ? '🟡' : '🟢';
+}
+
+/* Cycle drift */
+function groupAverageCycles(groupId) {
+  const packs = activePacks().filter(p => p.groupId === groupId);
+  if (!packs.length) return 0;
+  return packs.reduce((sum, p) => sum + p.cycles, 0) / packs.length;
+}
+function packDrift(pack) {
+  if (!pack.groupId) return 0;
+  const avg = groupAverageCycles(pack.groupId);
+  return Math.round(avg - pack.cycles); // positive = behind
+}
+
+/* Tally marks — SVG groups of 5, diagonal strike on 5th */
+function tallySVG(n) {
+  if (n <= 0) return '<span class="muted" style="font-size:11px">no cycles</span>';
+  const shown = Math.min(n, 60); // cap render, count shown numerically anyway
+  const groups = Math.floor(shown / 5), rem = shown % 5;
+  const H = 16, GW = 26, SP = 3.5;
+  let w = groups * GW + rem * SP + (rem ? 6 : 0);
+  if (w < 10) w = 10;
+  let paths = '';
+  let x = 0;
+  for (let g = 0; g < groups; g++) {
+    for (let i = 0; i < 4; i++)
+      paths += `<line x1="${x + 2 + i * SP}" y1="2" x2="${x + 2 + i * SP}" y2="${H - 2}"/>`;
+    paths += `<line x1="${x}" y1="${H - 3}" x2="${x + 4 + 3 * SP + 2}" y2="3"/>`;
+    x += GW;
+  }
+  for (let i = 0; i < rem; i++)
+    paths += `<line x1="${x + 2 + i * SP}" y1="2" x2="${x + 2 + i * SP}" y2="${H - 2}"/>`;
+  const overflow = n > 60 ? `<span class="muted" style="font-size:10px;font-family:var(--mono)">+${n - 60}</span>` : '';
+  return `<svg width="${w}" height="${H}" viewBox="0 0 ${w} ${H}" style="flex:none"
+    stroke="#F5A623" stroke-width="1.6" stroke-linecap="round">${paths}</svg>${overflow}`;
+}
+
+function fmtMoney(n) { return '$' + n.toFixed(2); }
+function fmtDate(ts) {
+  return new Date(ts).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function fmtTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+}
+
+/* ================= Toast ================= */
+let toastTimer = null;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 2600);
+}
+
+/* ================= Modal engine (bottom sheets) ================= */
+let modalCleanup = null;
+function openModal(html, onOpen) {
+  const bd = $('#modal-bd'), sheet = $('#modal-sheet');
+  if (modalCleanup) { try { modalCleanup(); } catch (e) {} modalCleanup = null; }
+  sheet.innerHTML = html;
+  bd.classList.add('on');
+  if (onOpen) modalCleanup = onOpen(sheet) || null;
+}
+function closeModal() {
+  if (modalCleanup) { try { modalCleanup(); } catch (e) {} modalCleanup = null; }
+  $('#modal-bd').classList.remove('on');
+  $('#modal-sheet').innerHTML = '';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  $('#modal-bd').addEventListener('click', e => { if (e.target === $('#modal-bd')) closeModal(); });
+});
+function sheetHead(title) {
+  return `<div class="sheet-hd"><div class="sheet-title">${esc(title)}</div>
+    <button class="sheet-x" onclick="closeModal()">✕</button></div>`;
+}
+
+/* ================= Navigation ================= */
+let currentPage = 'fleet';
+function nav(pg) {
+  currentPage = pg;
+  $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.pg === pg));
+  $$('.page').forEach(p => p.classList.toggle('on', p.id === 'pg-' + pg));
+  render();
+}
+function render() {
+  if (currentPage === 'fleet') renderFleet();
+  else if (currentPage === 'log') renderLog();
+  else if (currentPage === 'stats') renderStats();
+  else renderSettings();
+}
+
+/* ================= FLEET PAGE ================= */
+const expandedGroups = new Set(); // not persisted — always start collapsed
+
+function packCardHTML(p, showDrift) {
+  const st = packStatus(p);
+  const ir = latestIR(p);
+  const irCycle = p.irLog.length ? p.irLog[p.irLog.length - 1].cycle : null;
+  const drift = packDrift(p);
+  const cls = p.retired ? 'retired-card' : (st === 'retire' ? 'bad' : st === 'watch' ? 'warn' : '');
+  const cpc = (p.price != null && p.cycles > 0)
+    ? `<span class="cpc">${fmtMoney(p.price / p.cycles)}/cycle</span>` : '';
+  const irHtml = ir !== null
+    ? `<button class="ir-chip ${irChipClass(ir)}" onclick="openIRModal('${p.id}')">IR: ${ir.toFixed(1)}mΩ${irCycle !== null ? ' @ C' + irCycle : ''}</button>`
+    : `<button class="ir-chip" onclick="openIRModal('${p.id}')">+ Log IR</button>`;
+  const badge = p.retired ? '<span class="badge retired">Retired</span>' : statusBadge(st);
+  const driftHtml = (!p.retired && showDrift && drift > S.settings.cycleDriftThreshold)
+    ? `<div class="drift-warn">⚠ ${drift}cyc behind batch</div>` : '';
+  const actions = p.retired
+    ? `<div class="pc-actions" style="grid-template-columns:1fr">
+         <button class="b-unret" onclick="unretirePack('${p.id}')">↺ Unretire</button></div>`
+    : `<div class="pc-actions">
+         <button class="b-cyc" onclick="addCycle('${p.id}')">⚡ Cycle</button>
+         <button class="b-undo" onclick="undoCycle('${p.id}')">↩ Undo</button>
+         <button class="b-chart" onclick="openPackDetail('${p.id}')">📈 Chart</button>
+         <button class="b-ret" onclick="openRetireModal('${p.id}')">✕ Retire</button></div>`;
+  return `<div class="pack-card ${cls}">
+    <div class="pc-main">
+      <div class="pc-top" onclick="openEditPack('${p.id}')">
+        <span class="pc-name">${esc(p.name)}</span>${badge}
+      </div>
+      <div class="pc-type">${esc(p.type) || '<span class="muted">No type set</span>'}</div>
+      <div class="pc-tally">${tallySVG(p.cycles)}<span class="pc-cyc">${p.cycles} cycles</span></div>
+      <div class="pc-meta">${irHtml}${cpc}</div>
+      ${driftHtml}
+    </div>${actions}</div>`;
+}
+
+function renderFleet() {
+  const el = $('#pg-fleet');
+  const act = activePacks();
+  const retired = S.packs.filter(p => p.retired);
+
+  if (!S.packs.length) {
+    el.innerHTML = `<div class="card empty-state">
+      <div class="big">🔋</div>
+      <h2 style="font-size:15px">No packs yet</h2>
+      <p>Add your first battery pack to start tracking cycles, IR and health.</p>
+      <button class="btn btn-primary" onclick="openAddPack()" style="max-width:220px;margin:0 auto">+ Add First Pack</button>
+    </div>`;
+    return;
+  }
+
+  const totalCycles = act.reduce((s, p) => s + p.cycles, 0);
+  const watchCount = act.filter(p => packStatus(p) !== 'good').length;
+  let html = `<div id="summary">
+    <div class="cell"><div class="num">${act.length}</div><span class="lbl">Packs</span></div>
+    <div class="cell"><div class="num">${totalCycles}</div><span class="lbl">Total Cycles</span></div>
+    <div class="cell"><div class="num">${watchCount}</div><span class="lbl">Watch/Retire</span></div>
+  </div>`;
+
+  for (const g of S.packGroups) {
+    const packs = act.filter(p => p.groupId === g.id);
+    if (!packs.length) continue;
+    const avgIRs = packs.map(latestIR).filter(v => v !== null);
+    const avgIR = avgIRs.length ? (avgIRs.reduce((a, b) => a + b, 0) / avgIRs.length).toFixed(1) + 'mΩ' : '—';
+    const avgCyc = Math.round(groupAverageCycles(g.id));
+    const laggards = packs.filter(p => packDrift(p) > S.settings.cycleDriftThreshold);
+    const open = expandedGroups.has(g.id);
+    const warnHtml = laggards.length
+      ? `<div class="grp-warn">⚠ ${laggards.map(p => `${esc(p.name)} is ${packDrift(p)} cycles behind batch`).join(' · ')}</div>` : '';
+    html += `<div class="grp-section">
+      <div class="grp-hdr" onclick="toggleGroup('${g.id}')">
+        <div class="g-top">
+          <span class="grp-dot" style="background:${esc(g.color)}"></span>
+          <span class="grp-name">${esc(g.name)}</span>
+          <span class="grp-count">${packs.length} pack${packs.length !== 1 ? 's' : ''}</span>
+          <span class="grp-caret">${open ? '▼' : '▶'}</span>
+        </div>
+        <div class="grp-sub">Avg IR: ${avgIR} · ${avgCyc} avg cycles</div>
+        ${warnHtml}
+      </div>
+      ${open ? `<div class="grp-body">${packs.map(p => packCardHTML(p, true)).join('')}</div>` : ''}
+    </div>`;
+  }
+
+  const ungrouped = act.filter(p => !p.groupId || !groupById(p.groupId));
+  if (ungrouped.length) {
+    if (S.packGroups.some(g => act.some(p => p.groupId === g.id)))
+      html += `<div class="section-lbl">Ungrouped</div>`;
+    html += ungrouped.map(p => packCardHTML(p, false)).join('');
+  }
+
+  if (retired.length) {
+    html += `<div class="section-lbl">Retired (${retired.length})</div>`;
+    html += retired.map(p => packCardHTML(p, false)).join('');
+  }
+  el.innerHTML = html;
+}
+
+function toggleGroup(id) {
+  if (expandedGroups.has(id)) expandedGroups.delete(id); else expandedGroups.add(id);
+  renderFleet();
+}
+
+/* ---- Pack actions ---- */
+function addCycle(id) {
+  const p = packById(id); if (!p) return;
+  p.cycles++; save(); renderFleet();
+}
+function undoCycle(id) {
+  const p = packById(id); if (!p || p.cycles <= 0) return;
+  p.cycles--; save(); renderFleet();
+}
+function unretirePack(id) {
+  const p = packById(id); if (!p) return;
+  p.retired = false; save(); renderFleet();
+  toast(`${p.name} returned to fleet`);
+}
+
+/* ---- Add / Edit pack modals ---- */
+function groupOptionsHTML(selected) {
+  const opts = S.packGroups.map(g =>
+    `<option value="${esc(g.id)}" ${g.id === selected ? 'selected' : ''}>${esc(g.name)}</option>`).join('');
+  return `<option value="">Ungrouped</option>${opts}`;
+}
+
+function openAddPack() {
+  openModal(sheetHead('Add Pack') + `
+    <div class="field"><label class="lbl">Pack Name (max 6 chars)</label>
+      <input id="f-name" class="mono" maxlength="6" placeholder="1A" autocapitalize="characters"></div>
+    <div class="field"><label class="lbl">Type / Model</label>
+      <input id="f-type" placeholder="Ovonic Rebel 2.0 1550mAh 6S 150C"></div>
+    <div class="field"><label class="lbl">Purchase Price (AUD, optional)</label>
+      <input id="f-price" class="mono" type="number" step="0.01" min="0" inputmode="decimal" placeholder="34.99"></div>
+    <div class="field"><label class="lbl">Pack Group</label>
+      <select id="f-group">${groupOptionsHTML(null)}</select></div>
+    <div class="field"><label class="lbl">Starting Cycles</label>
+      <input id="f-cycles" class="mono" type="number" min="0" step="1" inputmode="numeric" value="0"></div>
+    <button class="btn btn-primary" onclick="saveNewPack()">Add Pack</button>`,
+    sheet => { sheet.querySelector('#f-name').focus(); });
+}
+function saveNewPack() {
+  const name = $('#f-name').value.trim().toUpperCase().slice(0, 6);
+  if (!name) { toast('Pack name is required'); return; }
+  const price = parseFloat($('#f-price').value);
+  S.packs.push({
+    id: uid(), name,
+    groupId: $('#f-group').value || null,
+    type: $('#f-type').value.trim(),
+    price: isFinite(price) && price >= 0 ? price : null,
+    cycles: Math.max(0, parseInt($('#f-cycles').value, 10) || 0),
+    retired: false, irLog: [], voltLog: []
+  });
+  save(); closeModal(); renderFleet();
+  toast(`Pack ${name} added`);
+}
+
+function openEditPack(id) {
+  const p = packById(id); if (!p) return;
+  openModal(sheetHead('Edit Pack') + `
+    <div class="field"><label class="lbl">Pack Name</label>
+      <input id="f-name" class="mono" maxlength="6" value="${esc(p.name)}" autocapitalize="characters"></div>
+    <div class="field"><label class="lbl">Type / Model</label>
+      <input id="f-type" value="${esc(p.type)}"></div>
+    <div class="field"><label class="lbl">Purchase Price (AUD)</label>
+      <input id="f-price" class="mono" type="number" step="0.01" min="0" inputmode="decimal" value="${p.price != null ? p.price : ''}"></div>
+    <div class="field"><label class="lbl">Pack Group</label>
+      <select id="f-group">${groupOptionsHTML(p.groupId)}</select></div>
+    <div class="field"><label class="lbl">Cycles</label>
+      <input id="f-cycles" class="mono" type="number" min="0" step="1" inputmode="numeric" value="${p.cycles}"></div>
+    <button class="btn btn-primary" onclick="saveEditPack('${p.id}')">Save Changes</button>`);
+}
+function saveEditPack(id) {
+  const p = packById(id); if (!p) return;
+  const name = $('#f-name').value.trim().toUpperCase().slice(0, 6);
+  if (!name) { toast('Pack name is required'); return; }
+  p.name = name;
+  p.type = $('#f-type').value.trim();
+  const price = parseFloat($('#f-price').value);
+  p.price = isFinite(price) && price >= 0 ? price : null;
+  p.groupId = $('#f-group').value || null;
+  p.cycles = Math.max(0, parseInt($('#f-cycles').value, 10) || 0);
+  save(); closeModal(); render();
+}
+
+/* ---- IR modal ---- */
+function openIRModal(id) {
+  const p = packById(id); if (!p) return;
+  const last = latestIR(p);
+  openModal(sheetHead(`Log IR — ${p.name}`) + `
+    <p class="muted" style="font-size:12px;margin-bottom:12px">
+      Whole-pack average internal resistance in mΩ, measured at storage charge.
+      ${last !== null ? `Last: <span class="mono" style="color:var(--text)">${last.toFixed(1)}mΩ</span>` : ''}
+    </p>
+    <div class="field"><label class="lbl">IR (mΩ) @ cycle ${p.cycles}</label>
+      <input id="f-ir" class="mono big-volt" type="number" step="0.1" min="0" inputmode="decimal" placeholder="3.2"></div>
+    <button class="btn btn-primary" onclick="saveIR('${p.id}')">Save Reading</button>`,
+    sheet => { sheet.querySelector('#f-ir').focus(); });
+}
+function saveIR(id) {
+  const p = packById(id); if (!p) return;
+  const v = parseFloat($('#f-ir').value);
+  if (!isFinite(v) || v <= 0) { toast('Enter a valid IR value'); return; }
+  p.irLog.push({ cycle: p.cycles, value: v, date: new Date().toISOString() });
+  save(); closeModal(); render();
+  toast(`IR ${v.toFixed(1)}mΩ logged for ${p.name}`);
+}
+
+/* ---- Pack detail chart modal ---- */
+let detailChart = null;
+function openPackDetail(id) {
+  const p = packById(id); if (!p) return;
+  const hasIR = p.irLog.length > 0, hasV = p.voltLog.length > 0;
+  openModal(sheetHead(`${p.name} — History`) + `
+    <div class="detail-kv"><span class="k">Type</span><span class="v">${esc(p.type) || '—'}</span></div>
+    <div class="detail-kv"><span class="k">Cycles</span><span class="v">${p.cycles}</span></div>
+    <div class="detail-kv"><span class="k">Latest IR</span><span class="v">${hasIR ? latestIR(p).toFixed(1) + 'mΩ' : '—'}</span></div>
+    <div class="detail-kv"><span class="k">Price</span><span class="v">${p.price != null ? fmtMoney(p.price) : '—'}</span></div>
+    ${p.price != null && p.cycles > 0 ? `<div class="detail-kv"><span class="k">Cost/cycle</span><span class="v">${fmtMoney(p.price / p.cycles)}</span></div>` : ''}
+    <div style="height:210px;position:relative;margin-top:14px">
+      ${hasIR || hasV ? '<canvas id="detail-canvas"></canvas>'
+        : '<div class="gc-empty">No IR or voltage history yet. Log an IR reading to start the chart.</div>'}
+    </div>
+    <div style="margin-top:14px"><button class="btn btn-outline" onclick="openIRModal('${p.id}')">+ Log IR Reading</button></div>`,
+    () => {
+      if (hasIR || hasV) {
+        const datasets = [];
+        if (hasIR) datasets.push({
+          label: 'IR mΩ', data: p.irLog.map(r => ({ x: r.cycle, y: r.value })),
+          borderColor: '#F5A623', backgroundColor: '#F5A623', yAxisID: 'y', tension: .2, pointRadius: 3
+        });
+        if (hasV) datasets.push({
+          label: 'V/cell', data: p.voltLog.map(r => ({ x: r.cycle, y: r.value })),
+          borderColor: '#2980B9', backgroundColor: '#2980B9', yAxisID: 'y2', tension: .2, pointRadius: 3
+        });
+        detailChart = new Chart($('#detail-canvas'), {
+          type: 'line',
+          data: { datasets },
+          options: chartOpts({
+            scales: {
+              x: { type: 'linear', title: axisTitle('cycles'), grid: gridStyle(), ticks: tickStyle() },
+              y: { min: 0, position: 'left', title: axisTitle('mΩ'), grid: gridStyle(), ticks: tickStyle() },
+              y2: hasV ? { min: 3.4, max: 4.4, position: 'right', title: axisTitle('V/cell'), grid: { display: false }, ticks: tickStyle() } : undefined
+            }
+          })
+        });
+      }
+      return () => { if (detailChart) { detailChart.destroy(); detailChart = null; } };
+    });
+}
+
+/* ---- Retire modal ---- */
+function openRetireModal(id) {
+  const p = packById(id); if (!p) return;
+  openModal(sheetHead('Retire Pack') + `
+    <p style="font-size:13px;margin-bottom:6px">Retire <span class="mono" style="color:var(--amber);font-weight:700">${esc(p.name)}</span>?</p>
+    <p class="muted" style="font-size:12px;margin-bottom:16px">
+      The pack is archived — hidden from the fleet and session selection, but its
+      ${p.cycles} cycles and history stay in your stats. You can unretire it later.</p>
+    <button class="btn btn-danger" onclick="retirePack('${p.id}')">✕ Retire ${esc(p.name)}</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>`);
+}
+function retirePack(id) {
+  const p = packById(id); if (!p) return;
+  p.retired = true;
+  // remove from active session silently
+  if (S.activeSession) S.activeSession.packs = S.activeSession.packs.filter(sp => sp.packId !== id);
+  save(); closeModal(); render();
+  toast(`${p.name} retired`);
+}
+
+/* ================= Geolocation & Weather ================= */
+function haversineKm(a, b) {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const x = Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+function findNearbyGeofence(gps) {
+  return S.geofences.find(gf => haversineKm(gps, gf) <= (gf.radiusKm || 1)) || null;
+}
+function getGPS() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('no geolocation')); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      err => reject(err),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+    );
+  });
+}
+async function reverseGeocode(gps) {
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${gps.lat}&lon=${gps.lng}&format=json`,
+      { headers: { 'Accept-Language': 'en' } });
+    const d = await r.json();
+    return d.address?.suburb || d.address?.town || d.address?.city || d.address?.county || null;
+  } catch (e) { return null; }
+}
+async function fetchWeather(gps) {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast` +
+      `?latitude=${gps.lat}&longitude=${gps.lng}` +
+      `&current=temperature_2m,wind_speed_10m,weather_code&wind_speed_unit=kmh`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const c = d.current;
+    return { temp: Math.round(c.temperature_2m), wind: Math.round(c.wind_speed_10m), desc: wxDesc(c.weather_code) };
+  } catch (e) { return null; }
+}
+function wxDesc(code) {
+  if (code === 0)  return '☀️ Clear';
+  if (code <= 3)   return '🌤 Partly cloudy';
+  if (code <= 9)   return '☁️ Cloudy';
+  if (code <= 19)  return '🌫 Foggy';
+  if (code <= 29)  return '🌦 Drizzle';
+  if (code <= 39)  return '🌧 Rain';
+  if (code <= 49)  return '🌨 Snow';
+  if (code <= 69)  return '🌧 Heavy rain';
+  if (code <= 79)  return '❄️ Snow';
+  if (code <= 89)  return '⛈ Thunderstorm';
+  return '🌪 Severe';
+}
+
+/* ================= LOG PAGE ================= */
+let elapsedTimer = null;
+
+function elapsedStr(startTs) {
+  const m = Math.floor((Date.now() - startTs) / 60000);
+  if (m < 60) return m + 'm';
+  return Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
+}
+
+function renderLog() {
+  const el = $('#pg-log');
+  clearInterval(elapsedTimer);
+  let html = '';
+
+  if (S.activeSession) {
+    const a = S.activeSession;
+    const wx = a.weather ? `<div class="wx-chips">
+        <span class="wx-chip">${a.weather.temp}°C</span>
+        <span class="wx-chip">${a.weather.wind}km/h</span>
+        <span class="wx-chip">${esc(a.weather.desc)}</span></div>` : '';
+    const rows = a.packs.map(sp => {
+      const p = packById(sp.packId);
+      if (!p) return '';
+      const grp = groupById(p.groupId);
+      const meta = `${grp ? esc(grp.name.split(' ')[0]) + ' · ' : ''}${p.cycles}cyc${latestIR(p) !== null ? ' · ' + latestIR(p).toFixed(1) + 'mΩ' : ''}`;
+      let action;
+      if (sp.landed) {
+        action = sp.voltage != null
+          ? `<span class="sp-done">${sp.voltage.toFixed(2)}V ✅</span>`
+          : `<span class="sp-done">✓ Done</span>`;
+      } else if (S.settings.logVoltage) {
+        action = `<button class="sp-land" onclick="openLandedModal('${sp.packId}')">Landed →</button>`;
+      } else {
+        action = `<button class="sp-land" onclick="markLandedNoVolt('${sp.packId}')">✓ Done</button>`;
+      }
+      return `<div class="sess-pack">
+        <span class="sp-name">${esc(p.name)}</span>
+        <span class="sp-info">${meta}</span>${action}</div>`;
+    }).join('');
+    const allLanded = a.packs.length > 0 && a.packs.every(sp => sp.landed);
+    html += `<div class="hero">
+      <div class="hero-hd">
+        <div class="live"><span class="dotp"></span><span class="t">SESSION ACTIVE</span>
+          <span class="elapsed" id="sess-elapsed">${elapsedStr(a.startTs)}</span></div>
+        <div class="hero-spot">📍 ${esc(a.spot) || 'Unknown spot'}</div>
+        ${wx}
+      </div>
+      ${rows}
+      <div class="hero-foot">
+        <button class="btn btn-outline" onclick="openAddPackToSession()">+ Add Pack</button>
+        <button class="btn ${allLanded ? 'btn-primary' : 'btn-outline'}" onclick="endSession()">■ End Session</button>
+      </div></div>`;
+    elapsedTimer = setInterval(() => {
+      const e = $('#sess-elapsed');
+      if (e && S.activeSession) e.textContent = elapsedStr(S.activeSession.startTs);
+    }, 60000);
+  } else {
+    html += `<div class="card empty-state">
+      <div class="big">🛸</div>
+      <h2 style="font-size:14px;letter-spacing:1px">NO ACTIVE SESSION</h2>
+      <p>Start a session to auto-detect your spot, grab the weather, and log pack cycles as you land.</p>
+      <button class="btn btn-primary" onclick="openStartSession()" style="max-width:240px;margin:0 auto">▶ Start Session</button>
+    </div>`;
+  }
+
+  // Past sessions
+  const past = S.sessions.slice().sort((x, y) => y.startTs - x.startTs);
+  if (past.length) {
+    html += `<div class="section-lbl">Past Sessions</div><div class="card">`;
+    html += past.map(s => {
+      const chips = s.packs.map(sp => {
+        const p = packById(sp.packId);
+        return `<span class="si-chip">${esc(p ? p.name : '?')}</span>`;
+      }).join('');
+      const wx = s.weather ? `<div class="si-wx">${s.weather.temp}°C · ${s.weather.wind}km/h · ${esc(s.weather.desc)}</div>` : '';
+      return `<div class="sess-item" onclick="openSessionDetail('${s.id}')">
+        <div class="si-top"><span class="si-date">${fmtDate(s.startTs)}</span>
+          <span class="si-spot">${esc(s.spot) || 'Unknown'}</span></div>
+        <div class="si-chips">${chips}</div>${wx}</div>`;
+    }).join('');
+    html += `</div>`;
+  }
+  el.innerHTML = html;
+}
+
+/* ---- Start session flow ---- */
+const sessSel = { gps: null, selected: new Set(), expanded: new Set(), spotAuto: '' };
+
+function openStartSession() {
+  if (!activePacks().length) { toast('Add a pack first'); return; }
+  sessSel.gps = null; sessSel.selected.clear(); sessSel.expanded.clear(); sessSel.spotAuto = '';
+
+  const groupsWithPacks = S.packGroups.filter(g => activePacks().some(p => p.groupId === g.id));
+  const ungrouped = activePacks().filter(p => !p.groupId || !groupById(p.groupId));
+
+  openModal(sheetHead('Start Session') + `
+    <div class="gps-status" id="gps-status">
+      ${S.settings.logLocation ? '<span class="spinner"></span> 📍 Detecting…' : '📍 Location detection off — enter spot manually'}
+    </div>
+    <div class="field"><label class="lbl">Spot Name</label>
+      <input id="f-spot" placeholder="e.g. River Park bando"></div>
+    <label class="lbl" style="display:block;margin:4px 0 8px">Select Packs</label>
+    <div id="sel-list">
+      ${groupsWithPacks.map(g => selGroupHTML(g)).join('')}
+      ${ungrouped.length ? `<div class="sel-tiles" style="padding:0">${ungrouped.map(p => selTileHTML(p)).join('')}</div>` : ''}
+    </div>
+    <div style="height:12px"></div>
+    <button class="btn btn-primary" id="b-startfly" onclick="startFlying()">▶ Start Flying</button>`,
+    () => { if (S.settings.logLocation) detectSpot(); });
+}
+
+function selGroupHTML(g) {
+  const packs = activePacks().filter(p => p.groupId === g.id);
+  const selCount = packs.filter(p => sessSel.selected.has(p.id)).length;
+  const allSel = selCount === packs.length && packs.length > 0;
+  const open = sessSel.expanded.has(g.id);
+  return `<div class="sel-grp ${allSel ? 'selgrp' : ''}" id="selgrp-${g.id}">
+    <div class="sel-grp-hd" onclick="tapSelGroup('${g.id}')">
+      <span class="grp-dot" style="background:${esc(g.color)}"></span>
+      <span class="grp-name">${esc(g.name)}</span>
+      <span class="sel-check">${selCount ? (allSel ? '✓' : selCount + '/' + packs.length) : ''}</span>
+      <span class="sel-caret">${open ? '▼' : '▶'}</span>
+    </div>
+    ${open ? `<div class="sel-tiles">${packs.map(p => selTileHTML(p)).join('')}</div>` : ''}
+  </div>`;
+}
+function selTileHTML(p) {
+  const sel = sessSel.selected.has(p.id);
+  const ir = latestIR(p);
+  const drift = packDrift(p) > S.settings.cycleDriftThreshold;
+  return `<div class="sel-tile ${sel ? 'sel' : ''} ${drift ? 'driftb' : ''}" onclick="tapSelPack(event,'${p.id}')">
+    <div class="t-name">${esc(p.name)}</div>
+    ${sel ? '<span class="t-check">✓</span>' : ''}
+    <div class="t-meta">${p.cycles}cyc</div>
+    <div class="t-meta">${ir !== null ? ir.toFixed(1) + 'mΩ' : '<span class="muted">No IR</span>'}</div>
+    <div class="t-dot">${healthDot(p)}${drift ? ' <span style="color:var(--amber)">⚠</span>' : ''}</div>
+  </div>`;
+}
+function refreshSelList() {
+  const list = $('#sel-list');
+  if (!list) return;
+  const groupsWithPacks = S.packGroups.filter(g => activePacks().some(p => p.groupId === g.id));
+  const ungrouped = activePacks().filter(p => !p.groupId || !groupById(p.groupId));
+  list.innerHTML = groupsWithPacks.map(g => selGroupHTML(g)).join('') +
+    (ungrouped.length ? `<div class="sel-tiles" style="padding:0">${ungrouped.map(p => selTileHTML(p)).join('')}</div>` : '');
+}
+function tapSelGroup(gid) {
+  const packs = activePacks().filter(p => p.groupId === gid);
+  const open = sessSel.expanded.has(gid);
+  const allSel = packs.length && packs.every(p => sessSel.selected.has(p.id));
+  if (!open) {
+    // collapsed tap: select all + expand
+    packs.forEach(p => sessSel.selected.add(p.id));
+    sessSel.expanded.add(gid);
+  } else if (allSel || packs.some(p => sessSel.selected.has(p.id))) {
+    // expanded selected tap: deselect all + collapse
+    packs.forEach(p => sessSel.selected.delete(p.id));
+    sessSel.expanded.delete(gid);
+  } else {
+    sessSel.expanded.delete(gid);
+  }
+  refreshSelList();
+}
+function tapSelPack(ev, pid) {
+  ev.stopPropagation();
+  if (sessSel.selected.has(pid)) sessSel.selected.delete(pid); else sessSel.selected.add(pid);
+  refreshSelList();
+}
+
+async function detectSpot() {
+  const st = $('#gps-status');
+  try {
+    const gps = await getGPS();
+    sessSel.gps = gps;
+    const gf = findNearbyGeofence(gps);
+    if (gf) {
+      if (st) st.innerHTML = `📍 Matched: <span style="color:var(--amber)">${esc(gf.name)}</span>`;
+      const inp = $('#f-spot');
+      if (inp && !inp.value) inp.value = gf.name;
+    } else {
+      const suburb = await reverseGeocode(gps);
+      if (suburb) {
+        if (st) st.innerHTML = `📍 Near ${esc(suburb)} — rename or save as new spot`;
+        const inp = $('#f-spot');
+        if (inp && !inp.value) inp.value = suburb;
+      } else {
+        if (st) st.textContent = '📍 Location found — name this spot';
+      }
+    }
+  } catch (e) {
+    sessSel.gps = null;
+    if (st) st.textContent = '📍 Location unavailable — enter manually';
+  }
+}
+
+async function startFlying() {
+  if (!sessSel.selected.size) { toast('Select at least one pack'); return; }
+  const btn = $('#b-startfly');
+  if (btn) { btn.disabled = true; btn.textContent = 'Starting…'; }
+  const spot = ($('#f-spot') ? $('#f-spot').value.trim() : '');
+  const gps = sessSel.gps;
+
+  // Save geofence: GPS + new spot name + no existing match within 1km
+  if (gps && spot && !findNearbyGeofence(gps)) {
+    S.geofences.push({ id: uid(), name: spot, lat: gps.lat, lng: gps.lng, radiusKm: 1 });
+    toast(`Saved new spot: ${spot}`);
+  }
+
+  let weather = null;
+  if (gps && S.settings.logWeather) weather = await fetchWeather(gps);
+
+  S.activeSession = {
+    id: uid(), startTs: Date.now(), spot,
+    gps: gps ? { lat: gps.lat, lng: gps.lng } : null,
+    weather, notes: '',
+    packs: Array.from(sessSel.selected).map(pid => ({ packId: pid, landed: false, voltage: null }))
+  };
+  save(); closeModal(); nav('log');
+}
+
+/* ---- Landing ---- */
+function openLandedModal(packId) {
+  const p = packById(packId); if (!p) return;
+  openModal(sheetHead(`Landed — ${p.name}`) + `
+    <p class="muted" style="font-size:12px;margin-bottom:12px">Resting voltage per cell after landing. 3.70V+ is a safe floor; below 3.65V damages the pack.</p>
+    <div class="field"><label class="lbl">Resting V/cell</label>
+      <input id="f-volt" class="mono big-volt" type="number" step="0.01" min="3" max="4.4" inputmode="decimal" placeholder="3.76"></div>
+    <button class="btn btn-primary" onclick="saveLanded('${packId}')">Save & Count Cycle</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-outline" onclick="saveLanded('${packId}', true)">Skip Voltage — Just Count Cycle</button>`,
+    sheet => { sheet.querySelector('#f-volt').focus(); });
+}
+function saveLanded(packId, skipVolt) {
+  const a = S.activeSession; if (!a) return;
+  const sp = a.packs.find(x => x.packId === packId); if (!sp || sp.landed) return;
+  const p = packById(packId); if (!p) return;
+  let v = null;
+  if (!skipVolt) {
+    v = parseFloat($('#f-volt').value);
+    if (!isFinite(v) || v < 2.5 || v > 4.5) { toast('Enter a valid V/cell (e.g. 3.76)'); return; }
+  }
+  sp.landed = true;
+  sp.voltage = v;
+  p.cycles++; // cycle increments on landing
+  if (v != null) p.voltLog.push({ cycle: p.cycles, value: v, date: new Date().toISOString() });
+  save(); closeModal(); renderLog();
+}
+function markLandedNoVolt(packId) {
+  const a = S.activeSession; if (!a) return;
+  const sp = a.packs.find(x => x.packId === packId); if (!sp || sp.landed) return;
+  const p = packById(packId); if (!p) return;
+  sp.landed = true;
+  p.cycles++;
+  save(); renderLog();
+}
+
+function openAddPackToSession() {
+  const a = S.activeSession; if (!a) return;
+  const inSession = new Set(a.packs.map(sp => sp.packId));
+  const avail = activePacks().filter(p => !inSession.has(p.id));
+  if (!avail.length) { toast('All packs are already in this session'); return; }
+  openModal(sheetHead('Add Pack to Session') + avail.map(p => {
+    const ir = latestIR(p);
+    return `<div class="pick-row" onclick="addPackToSession('${p.id}')">
+      <span class="pr-name">${esc(p.name)}</span>
+      <span class="pr-meta">${p.cycles}cyc${ir !== null ? ' · ' + ir.toFixed(1) + 'mΩ' : ''}</span>
+      <span class="pr-check">${healthDot(p)}</span></div>`;
+  }).join(''));
+}
+function addPackToSession(pid) {
+  const a = S.activeSession; if (!a) return;
+  a.packs.push({ packId: pid, landed: false, voltage: null });
+  save(); closeModal(); renderLog();
+}
+
+function endSession() {
+  const a = S.activeSession; if (!a) return;
+  const unlanded = a.packs.filter(sp => !sp.landed).length;
+  openModal(sheetHead('End Session') + `
+    ${unlanded ? `<p class="pick-warn">⚠ ${unlanded} pack${unlanded !== 1 ? 's' : ''} not marked landed — they won't gain a cycle.</p>` : ''}
+    <div class="field"><label class="lbl">Session Notes (optional)</label>
+      <textarea id="f-notes" rows="3" placeholder="Windy, lost a prop on pack 2…">${esc(a.notes || '')}</textarea></div>
+    <button class="btn btn-primary" onclick="confirmEndSession()">End Session</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-outline" onclick="closeModal()">Keep Flying</button>`);
+}
+function confirmEndSession() {
+  const a = S.activeSession; if (!a) return;
+  a.notes = $('#f-notes') ? $('#f-notes').value.trim() : '';
+  a.endTs = Date.now();
+  S.sessions.push(a);
+  S.activeSession = null;
+  save(); closeModal(); renderLog();
+  toast('Session saved');
+}
+
+function openSessionDetail(id) {
+  const s = S.sessions.find(x => x.id === id); if (!s) return;
+  const durStr = s.endTs ? (() => {
+    const m = Math.round((s.endTs - s.startTs) / 60000);
+    return m < 60 ? m + 'm' : Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
+  })() : '—';
+  const rows = s.packs.map(sp => {
+    const p = packById(sp.packId);
+    return `<div class="detail-kv"><span class="k mono">${esc(p ? p.name : '?')}</span>
+      <span class="v">${sp.landed ? (sp.voltage != null ? sp.voltage.toFixed(2) + 'V/cell' : 'Landed') : 'Not landed'}</span></div>`;
+  }).join('');
+  openModal(sheetHead('Session Detail') + `
+    <div class="detail-kv"><span class="k">Date</span><span class="v">${fmtDate(s.startTs)} ${fmtTime(s.startTs)}</span></div>
+    <div class="detail-kv"><span class="k">Spot</span><span class="v">${esc(s.spot) || '—'}</span></div>
+    <div class="detail-kv"><span class="k">Duration</span><span class="v">${durStr}</span></div>
+    ${s.weather ? `<div class="detail-kv"><span class="k">Weather</span><span class="v">${s.weather.temp}°C · ${s.weather.wind}km/h · ${esc(s.weather.desc)}</span></div>` : ''}
+    ${s.gps ? `<div class="detail-kv"><span class="k">GPS</span><span class="v">${s.gps.lat.toFixed(4)}, ${s.gps.lng.toFixed(4)}</span></div>` : ''}
+    <div class="section-lbl">Packs</div>${rows}
+    ${s.notes ? `<div class="section-lbl">Notes</div><p style="font-size:13px">${esc(s.notes)}</p>` : ''}
+    <div style="height:14px"></div>
+    <button class="btn btn-ghost-danger" onclick="deleteSession('${s.id}')">Delete Session</button>`);
+}
+function deleteSession(id) {
+  S.sessions = S.sessions.filter(s => s.id !== id);
+  save(); closeModal(); renderLog();
+  toast('Session deleted');
+}
+
+/* ================= STATS PAGE ================= */
+let statCharts = [];
+
+function tickStyle() { return { color: '#666', font: { family: "'JetBrains Mono', monospace", size: 9 } }; }
+function gridStyle() { return { color: '#1E1E1E' }; }
+function axisTitle(text) {
+  return { display: true, text, color: '#666', font: { family: "'JetBrains Mono', monospace", size: 9 } };
+}
+function chartOpts(extra) {
+  return Object.assign({
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1A1A1A', borderColor: '#2E2E2E', borderWidth: 1,
+        titleFont: { family: "'JetBrains Mono', monospace", size: 10 },
+        bodyFont: { family: "'JetBrains Mono', monospace", size: 10 },
+        titleColor: '#F5A623', bodyColor: '#E8E8E8'
+      }
+    }
+  }, extra);
+}
+// simple plugin drawing horizontal dashed threshold lines
+const thresholdPlugin = {
+  id: 'thresholds',
+  afterDraw(chart) {
+    const ths = chart.config.options._thresholds || [];
+    const { ctx, chartArea, scales } = chart;
+    if (!chartArea || !scales.y) return;
+    ths.forEach(t => {
+      const y = scales.y.getPixelForValue(t.value);
+      if (y < chartArea.top || y > chartArea.bottom) return;
+      ctx.save();
+      ctx.strokeStyle = t.color; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(chartArea.left, y); ctx.lineTo(chartArea.right, y); ctx.stroke();
+      ctx.restore();
+    });
+  }
+};
+if (typeof Chart !== 'undefined') Chart.register(thresholdPlugin);
+
+function graphCardShell(id, bodyHtml, footHtml) {
+  const def = GRAPH_DEFS[id];
+  return `<div class="graph-card" data-gid="${id}">
+    <div class="gc-hd"><div><div class="gc-title">${def.title}</div>
+      <div class="gc-sub">${def.sub}</div></div>
+      <span class="gc-handle" data-handle="${id}">⠿</span></div>
+    ${bodyHtml}
+    ${footHtml ? `<div class="gc-foot">${footHtml}</div>` : ''}
+  </div>`;
+}
+function canvasWrap(id) { return `<div class="gc-canvas-wrap"><canvas id="cv-${id}"></canvas></div>`; }
+function emptyBody(msg) { return `<div class="gc-empty">${msg}</div>`; }
+function legendHTML(items) {
+  return items.map(i => `<span class="leg"><span class="ld" style="background:${i.color}"></span>${esc(i.label)}</span>`).join('');
+}
+
+function renderStats() {
+  const el = $('#pg-stats');
+  statCharts.forEach(c => c.destroy());
+  statCharts = [];
+
+  const order = S.settings.graphOrder.filter(id => S.settings.graphs[id]);
+  if (!order.length) {
+    el.innerHTML = `<div class="card empty-state"><div class="big">📊</div>
+      <p>All graphs are hidden. Enable them in Settings → Stats Graphs.</p></div>`;
+    return;
+  }
+
+  let html = `<div class="stats-hint">Drag cards to reorder · Toggle graphs in Settings</div>`;
+  const builders = [];
+
+  for (const id of order) {
+    const b = GRAPH_BUILDERS[id]();
+    html += b.html;
+    if (b.mount) builders.push(b.mount);
+  }
+  el.innerHTML = html;
+  builders.forEach(fn => fn());
+  initDrag(el);
+}
+
+const GRAPH_BUILDERS = {
+  irTrend() {
+    const packs = S.packs.filter(p => p.irLog.length);
+    if (!packs.length) return { html: graphCardShell('irTrend', emptyBody('Log IR readings in the Fleet tab to see this graph.')) };
+    const foot = legendHTML(packs.map(p => ({ color: packColor(p), label: p.name }))) +
+      `<span class="th-chip" style="color:#27AE60">5mΩ</span>
+       <span class="th-chip" style="color:#F5A623">8mΩ</span>
+       <span class="th-chip" style="color:#C0392B">15mΩ</span>`;
+    return {
+      html: graphCardShell('irTrend', canvasWrap('irTrend'), foot),
+      mount() {
+        statCharts.push(new Chart($('#cv-irTrend'), {
+          type: 'line',
+          data: {
+            datasets: packs.map(p => ({
+              label: p.name,
+              data: p.irLog.map(r => ({ x: r.cycle, y: r.value })),
+              borderColor: packColor(p), backgroundColor: packColor(p),
+              tension: .2, pointRadius: 2.5, borderWidth: 1.5
+            }))
+          },
+          options: Object.assign(chartOpts({
+            scales: {
+              x: { type: 'linear', title: axisTitle('cycles'), grid: gridStyle(), ticks: tickStyle() },
+              y: { min: 0, title: axisTitle('mΩ'), grid: gridStyle(), ticks: tickStyle() }
+            }
+          }), { _thresholds: [
+            { value: 5, color: '#27AE60' }, { value: 8, color: '#F5A623' }, { value: 15, color: '#C0392B' }
+          ] })
+        }));
+      }
+    };
+  },
+
+  voltTrend() {
+    const packs = S.packs.filter(p => p.voltLog.length);
+    if (!packs.length) return { html: graphCardShell('voltTrend', emptyBody('Log landing voltages during sessions to see this graph.')) };
+    const foot = legendHTML(packs.map(p => ({ color: packColor(p), label: p.name }))) +
+      `<span class="th-chip" style="color:#27AE60">3.70V floor</span>
+       <span class="th-chip" style="color:#C0392B">3.65V damage</span>`;
+    return {
+      html: graphCardShell('voltTrend', canvasWrap('voltTrend'), foot),
+      mount() {
+        statCharts.push(new Chart($('#cv-voltTrend'), {
+          type: 'line',
+          data: {
+            datasets: packs.map(p => ({
+              label: p.name,
+              data: p.voltLog.map(r => ({ x: r.cycle, y: r.value })),
+              borderColor: packColor(p), backgroundColor: packColor(p),
+              tension: .2, pointRadius: 2.5, borderWidth: 1.5
+            }))
+          },
+          options: Object.assign(chartOpts({
+            scales: {
+              x: { type: 'linear', title: axisTitle('cycles'), grid: gridStyle(), ticks: tickStyle() },
+              y: { min: 3.4, max: 4.4, title: axisTitle('V/cell'), grid: gridStyle(), ticks: tickStyle() }
+            }
+          }), { _thresholds: [
+            { value: 3.7, color: '#27AE60' }, { value: 3.65, color: '#C0392B' }
+          ] })
+        }));
+      }
+    };
+  },
+
+  cycleDist() {
+    const packs = S.packs.filter(p => !p.retired);
+    if (!packs.length) return { html: graphCardShell('cycleDist', emptyBody('Add packs to see cycle distribution.')) };
+    const stColor = p => {
+      const st = packStatus(p);
+      return st === 'retire' ? '#C0392B' : st === 'watch' ? '#F5A623' : '#27AE60';
+    };
+    return {
+      html: graphCardShell('cycleDist', canvasWrap('cycleDist')),
+      mount() {
+        statCharts.push(new Chart($('#cv-cycleDist'), {
+          type: 'bar',
+          data: {
+            labels: packs.map(p => p.name),
+            datasets: [{ data: packs.map(p => p.cycles), backgroundColor: packs.map(stColor), borderRadius: 3 }]
+          },
+          options: chartOpts({
+            plugins: {
+              legend: { display: false },
+              tooltip: Object.assign({}, chartOpts().plugins.tooltip, {
+                callbacks: { label: ctx => `${ctx.parsed.y} cycles` }
+              })
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: tickStyle() },
+              y: { beginAtZero: true, grid: gridStyle(), ticks: tickStyle() }
+            }
+          })
+        }));
+      }
+    };
+  },
+
+  sessionFreq() {
+    if (!S.sessions.length) return { html: graphCardShell('sessionFreq', emptyBody('Complete sessions to see flying frequency.')) };
+    // pack-flights per ISO week (Monday start)
+    const weeks = {};
+    for (const s of S.sessions) {
+      const d = new Date(s.startTs);
+      const day = (d.getDay() + 6) % 7; // 0 = Monday
+      const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
+      const key = mon.getTime();
+      weeks[key] = (weeks[key] || 0) + s.packs.length;
+    }
+    const keys = Object.keys(weeks).map(Number).sort((a, b) => a - b);
+    const labels = keys.map(k => new Date(k).toLocaleDateString('en-AU', { day: '2-digit', month: 'short' }));
+    return {
+      html: graphCardShell('sessionFreq', canvasWrap('sessionFreq')),
+      mount() {
+        statCharts.push(new Chart($('#cv-sessionFreq'), {
+          type: 'bar',
+          data: { labels, datasets: [{ data: keys.map(k => weeks[k]), backgroundColor: '#F5A623', borderRadius: 3 }] },
+          options: chartOpts({
+            plugins: {
+              legend: { display: false },
+              tooltip: Object.assign({}, chartOpts().plugins.tooltip, {
+                callbacks: { label: ctx => `${ctx.parsed.y} pack-flights` }
+              })
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: tickStyle() },
+              y: { beginAtZero: true, grid: gridStyle(), ticks: Object.assign(tickStyle(), { precision: 0 }) }
+            }
+          })
+        }));
+      }
+    };
+  },
+
+  packHealth() {
+    const packs = S.packs.filter(p => p.irLog.length);
+    if (!packs.length) return { html: graphCardShell('packHealth', emptyBody('Log IR readings to see pack health scatter plot.')) };
+    const foot = legendHTML(packs.map(p => ({ color: packColor(p), label: p.name })));
+    return {
+      html: graphCardShell('packHealth', canvasWrap('packHealth'), foot),
+      mount() {
+        statCharts.push(new Chart($('#cv-packHealth'), {
+          type: 'scatter',
+          data: {
+            datasets: packs.map(p => ({
+              label: p.name,
+              data: [{ x: p.cycles, y: latestIR(p) }],
+              backgroundColor: packColor(p), pointRadius: 6, pointHoverRadius: 8
+            }))
+          },
+          options: chartOpts({
+            plugins: {
+              legend: { display: false },
+              tooltip: Object.assign({}, chartOpts().plugins.tooltip, {
+                callbacks: {
+                  label: ctx => `${ctx.dataset.label}: ${ctx.parsed.x}cyc / ${ctx.parsed.y.toFixed(1)}mΩ`
+                }
+              })
+            },
+            scales: {
+              x: { beginAtZero: true, title: axisTitle('cycles'), grid: gridStyle(), ticks: tickStyle() },
+              y: { beginAtZero: true, title: axisTitle('mΩ'), grid: gridStyle(), ticks: tickStyle() }
+            }
+          })
+        }));
+      }
+    };
+  },
+
+  costPerCycle() {
+    const packs = S.packs.filter(p => p.price != null && p.cycles > 0);
+    if (!packs.length) return { html: graphCardShell('costPerCycle', emptyBody('Set purchase price per pack to see cost per cycle. Add price when creating a pack.')) };
+    return {
+      html: graphCardShell('costPerCycle', canvasWrap('costPerCycle')),
+      mount() {
+        statCharts.push(new Chart($('#cv-costPerCycle'), {
+          type: 'bar',
+          data: {
+            labels: packs.map(p => p.name),
+            datasets: [{ data: packs.map(p => p.price / p.cycles), backgroundColor: packs.map(packColor), borderRadius: 3 }]
+          },
+          options: chartOpts({
+            plugins: {
+              legend: { display: false },
+              tooltip: Object.assign({}, chartOpts().plugins.tooltip, {
+                callbacks: { label: ctx => `$${ctx.parsed.y.toFixed(2)}/cycle` }
+              })
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: tickStyle() },
+              y: { beginAtZero: true, grid: gridStyle(), ticks: Object.assign(tickStyle(), {
+                callback: v => '$' + Number(v).toFixed(2)
+              }) }
+            }
+          })
+        }));
+      }
+    };
+  }
+};
+
+/* ---- Drag reorder (HTML5 + touch) ---- */
+function initDrag(container) {
+  const cards = Array.from(container.querySelectorAll('.graph-card'));
+
+  function commitOrder() {
+    const newOrder = Array.from(container.querySelectorAll('.graph-card')).map(c => c.dataset.gid);
+    // keep hidden graphs in their old relative slots at the end
+    const hidden = S.settings.graphOrder.filter(id => !newOrder.includes(id));
+    S.settings.graphOrder = newOrder.concat(hidden);
+    save();
+    renderStats(); // re-render to rebind charts cleanly
+  }
+
+  cards.forEach(card => {
+    const handle = card.querySelector('.gc-handle');
+
+    /* Desktop HTML5 drag */
+    handle.addEventListener('mousedown', () => { card.draggable = true; });
+    card.addEventListener('dragstart', e => {
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', card.dataset.gid);
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      card.draggable = false;
+      cards.forEach(c => c.classList.remove('droptarget'));
+      commitOrder();
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      const dragging = container.querySelector('.dragging');
+      if (!dragging || dragging === card) return;
+      card.classList.add('droptarget');
+      const rect = card.getBoundingClientRect();
+      const before = e.clientY < rect.top + rect.height / 2;
+      container.insertBefore(dragging, before ? card : card.nextSibling);
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('droptarget'));
+    card.addEventListener('drop', e => { e.preventDefault(); card.classList.remove('droptarget'); });
+
+    /* Touch drag (iOS Safari has no HTML5 DnD) */
+    let touchDragging = false;
+    handle.addEventListener('touchstart', e => {
+      touchDragging = true;
+      card.classList.add('dragging');
+      e.preventDefault();
+    }, { passive: false });
+    handle.addEventListener('touchmove', e => {
+      if (!touchDragging) return;
+      e.preventDefault();
+      const y = e.touches[0].clientY;
+      const others = Array.from(container.querySelectorAll('.graph-card')).filter(c => c !== card);
+      for (const other of others) {
+        const r = other.getBoundingClientRect();
+        if (y > r.top && y < r.bottom) {
+          const before = y < r.top + r.height / 2;
+          container.insertBefore(card, before ? other : other.nextSibling);
+          break;
+        }
+      }
+    }, { passive: false });
+    handle.addEventListener('touchend', () => {
+      if (!touchDragging) return;
+      touchDragging = false;
+      card.classList.remove('dragging');
+      commitOrder();
+    });
+  });
+}
+
+/* ================= SETTINGS PAGE ================= */
+function toggleHTML(key, on) {
+  return `<span class="toggle ${on ? 'on' : ''}" onclick="flipSetting('${key}')"></span>`;
+}
+function flipSetting(key) {
+  if (key.startsWith('graphs.')) {
+    const g = key.split('.')[1];
+    S.settings.graphs[g] = !S.settings.graphs[g];
+  } else {
+    S.settings[key] = !S.settings[key];
+  }
+  save(); renderSettings();
+}
+
+function renderSettings() {
+  const el = $('#pg-settings');
+  const st = S.settings;
+  let html = '';
+
+  html += `<div class="set-section"><div class="section-lbl">Logging Options</div><div class="card">
+    <div class="set-row"><div><div class="set-name">Landing Voltage</div>
+      <div class="set-desc">Prompt for resting V/cell when a pack lands</div></div>
+      ${toggleHTML('logVoltage', st.logVoltage)}</div>
+    <div class="set-row"><div><div class="set-name">Auto Weather</div>
+      <div class="set-desc">Fetch conditions from Open-Meteo at session start</div></div>
+      ${toggleHTML('logWeather', st.logWeather)}</div>
+    <div class="set-row"><div><div class="set-name">Location Detection</div>
+      <div class="set-desc">GPS spot matching and reverse geocoding</div></div>
+      ${toggleHTML('logLocation', st.logLocation)}</div>
+  </div></div>`;
+
+  html += `<div class="set-section"><div class="section-lbl">Pack Groups</div><div class="card">`;
+  if (S.packGroups.length) {
+    html += S.packGroups.map(g => {
+      const count = S.packs.filter(p => p.groupId === g.id && !p.retired).length;
+      return `<div class="set-row" onclick="openEditGroup('${g.id}')" style="cursor:pointer">
+        <span class="grp-dot" style="background:${esc(g.color)}"></span>
+        <div><div class="set-name mono">${esc(g.name)}</div>
+          ${g.description ? `<div class="set-desc">${esc(g.description)}</div>` : ''}</div>
+        <span class="spacer"></span>
+        <span class="muted" style="font-size:11px;flex:none">${count} pack${count !== 1 ? 's' : ''}</span>
+        <button class="grp-row-del" onclick="event.stopPropagation();confirmDeleteGroup('${g.id}')">Delete</button>
+      </div>`;
+    }).join('');
+  } else {
+    html += `<div class="set-row"><span class="muted" style="font-size:12px">No groups yet — group packs bought as a batch.</span></div>`;
+  }
+  html += `<div class="set-add"><button class="btn btn-outline" onclick="openAddGroup()">+ New Group</button></div></div></div>`;
+
+  html += `<div class="set-section"><div class="section-lbl">Stats Graphs</div><div class="card">` +
+    DEFAULT_SETTINGS.graphOrder.map(id => `
+      <div class="set-row"><div class="set-name">${GRAPH_DEFS[id].title}</div>
+        ${toggleHTML('graphs.' + id, st.graphs[id])}</div>`).join('') +
+    `</div></div>`;
+
+  html += `<div class="set-section"><div class="section-lbl">Flying Spots (Geofences)</div><div class="card">`;
+  if (S.geofences.length) {
+    html += S.geofences.map(gf => `
+      <div class="set-row">
+        <div><div class="set-name">${esc(gf.name)}</div>
+          <div class="set-desc mono">${gf.lat.toFixed(4)}, ${gf.lng.toFixed(4)} · ${gf.radiusKm || 1}km radius</div></div>
+        <button class="gf-del" onclick="deleteGeofence('${gf.id}')">Delete</button>
+      </div>`).join('');
+  } else {
+    html += `<div class="set-row"><span class="muted" style="font-size:12px">No saved spots. Spots are saved automatically when you start sessions at new locations.</span></div>`;
+  }
+  html += `<div class="set-add"><button class="btn btn-outline" onclick="openAddGeofence()">+ Save Current Location</button></div></div></div>`;
+
+  html += `<div class="set-section"><div class="section-lbl">Data</div><div class="card">
+    <div class="set-add" style="margin-top:14px">
+      <button class="btn btn-outline" onclick="openIOModal()">⬆⬇ Import / Export Backup</button>
+    </div></div></div>`;
+
+  el.innerHTML = html;
+}
+
+/* ---- Group modals ---- */
+let groupColorSel = PACK_COLORS[0];
+const groupPackSel = new Set();
+
+function swatchesHTML(sel) {
+  return `<div class="swatches">` + PACK_COLORS.map(c =>
+    `<span class="swatch ${c === sel ? 'sel' : ''}" style="background:${c}" onclick="pickGroupColor('${c}',this)"></span>`
+  ).join('') + `</div>`;
+}
+function pickGroupColor(c, elm) {
+  groupColorSel = c;
+  elm.parentElement.querySelectorAll('.swatch').forEach(s => s.classList.remove('sel'));
+  elm.classList.add('sel');
+}
+function groupPackRowsHTML(editGroupId) {
+  const pool = editGroupId
+    ? S.packs.filter(p => !p.retired)
+    : S.packs.filter(p => !p.retired && (!p.groupId || !groupById(p.groupId)));
+  if (!pool.length) return `<p class="muted" style="font-size:12px;margin-bottom:10px">No packs available.</p>`;
+  return pool.map(p => {
+    const sel = groupPackSel.has(p.id);
+    const other = p.groupId && p.groupId !== editGroupId ? groupById(p.groupId) : null;
+    return `<div>
+      <div class="pick-row ${sel ? 'sel' : ''}" onclick="toggleGroupPack('${p.id}','${editGroupId || ''}')" data-pick="${p.id}">
+        <span class="pr-name">${esc(p.name)}</span>
+        <span class="pr-meta">${p.cycles}cyc</span>
+        <span class="pr-check">${sel ? '✓' : ''}</span>
+      </div>
+      ${sel && other ? `<div class="pick-warn">This pack is currently in ${esc(other.name)} — it will be moved.</div>` : ''}
+    </div>`;
+  }).join('');
+}
+function toggleGroupPack(pid, editGroupId) {
+  if (groupPackSel.has(pid)) groupPackSel.delete(pid); else groupPackSel.add(pid);
+  const wrap = $('#grp-pack-list');
+  if (wrap) wrap.innerHTML = groupPackRowsHTML(editGroupId || null);
+}
+
+function openAddGroup() {
+  groupColorSel = PACK_COLORS[S.packGroups.length % PACK_COLORS.length];
+  groupPackSel.clear();
+  openModal(sheetHead('New Pack Group') + `
+    <div class="field"><label class="lbl">Group Name</label>
+      <input id="f-gname" placeholder="Ovonic Batch 1"></div>
+    <div class="field"><label class="lbl">Description (optional)</label>
+      <input id="f-gdesc" placeholder="Board 1 — parallel board A"></div>
+    <div class="field"><label class="lbl">Colour</label>${swatchesHTML(groupColorSel)}</div>
+    <div class="field"><label class="lbl">Assign Packs</label>
+      <div id="grp-pack-list">${groupPackRowsHTML(null)}</div></div>
+    <button class="btn btn-primary" onclick="saveNewGroup()">Create Group</button>`);
+}
+function saveNewGroup() {
+  const name = $('#f-gname').value.trim();
+  if (!name) { toast('Group name is required'); return; }
+  const g = { id: uid(), name, color: groupColorSel, description: $('#f-gdesc').value.trim() };
+  S.packGroups.push(g);
+  groupPackSel.forEach(pid => { const p = packById(pid); if (p) p.groupId = g.id; });
+  save(); closeModal(); renderSettings();
+  toast(`Group "${name}" created`);
+}
+
+function openEditGroup(gid) {
+  const g = groupById(gid); if (!g) return;
+  groupColorSel = g.color;
+  groupPackSel.clear();
+  S.packs.filter(p => p.groupId === gid && !p.retired).forEach(p => groupPackSel.add(p.id));
+  openModal(sheetHead('Edit Pack Group') + `
+    <div class="field"><label class="lbl">Group Name</label>
+      <input id="f-gname" value="${esc(g.name)}"></div>
+    <div class="field"><label class="lbl">Description</label>
+      <input id="f-gdesc" value="${esc(g.description || '')}"></div>
+    <div class="field"><label class="lbl">Colour</label>${swatchesHTML(groupColorSel)}</div>
+    <div class="field"><label class="lbl">Packs In Group</label>
+      <div id="grp-pack-list">${groupPackRowsHTML(gid)}</div></div>
+    <button class="btn btn-primary" onclick="saveEditGroup('${gid}')">Save Group</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-ghost-danger" onclick="confirmDeleteGroup('${gid}')">Delete Group</button>`);
+}
+function saveEditGroup(gid) {
+  const g = groupById(gid); if (!g) return;
+  const name = $('#f-gname').value.trim();
+  if (!name) { toast('Group name is required'); return; }
+  g.name = name;
+  g.description = $('#f-gdesc').value.trim();
+  g.color = groupColorSel;
+  for (const p of S.packs) {
+    if (groupPackSel.has(p.id)) p.groupId = gid;
+    else if (p.groupId === gid) p.groupId = null;
+  }
+  save(); closeModal(); renderSettings();
+}
+function confirmDeleteGroup(gid) {
+  const g = groupById(gid); if (!g) return;
+  const count = S.packs.filter(p => p.groupId === gid).length;
+  openModal(sheetHead('Delete Group') + `
+    <p style="font-size:13px;margin-bottom:6px">Delete <strong>${esc(g.name)}</strong>?</p>
+    <p class="muted" style="font-size:12px;margin-bottom:16px">
+      ${count ? `${count} pack${count !== 1 ? 's' : ''} will become Ungrouped. ` : ''}Packs and their history are not deleted.</p>
+    <button class="btn btn-danger" onclick="deleteGroup('${gid}')">Delete Group</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>`);
+}
+function deleteGroup(gid) {
+  S.packs.forEach(p => { if (p.groupId === gid) p.groupId = null; });
+  S.packGroups = S.packGroups.filter(g => g.id !== gid);
+  save(); closeModal(); renderSettings();
+  toast('Group deleted');
+}
+
+/* ---- Geofences ---- */
+function deleteGeofence(id) {
+  S.geofences = S.geofences.filter(g => g.id !== id);
+  save(); renderSettings();
+}
+function openAddGeofence() {
+  openModal(sheetHead('Save Current Location') + `
+    <div class="gps-status" id="gf-status"><span class="spinner"></span> 📍 Getting GPS fix…</div>
+    <div class="field"><label class="lbl">Spot Name</label>
+      <input id="f-gfname" placeholder="e.g. River Park bando"></div>
+    <div class="field"><label class="lbl">Radius (km)</label>
+      <input id="f-gfradius" class="mono" type="number" step="0.1" min="0.1" value="1"></div>
+    <button class="btn btn-primary" id="b-savegf" onclick="saveGeofence()" disabled>Save Spot</button>`,
+    () => {
+      getGPS().then(gps => {
+        window._gfGps = gps;
+        const st = $('#gf-status');
+        if (st) st.innerHTML = `📍 <span class="mono">${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)}</span>`;
+        const b = $('#b-savegf'); if (b) b.disabled = false;
+      }).catch(() => {
+        const st = $('#gf-status');
+        if (st) st.textContent = '📍 Location unavailable — check permissions';
+      });
+    });
+}
+function saveGeofence() {
+  const gps = window._gfGps;
+  if (!gps) return;
+  const name = $('#f-gfname').value.trim();
+  if (!name) { toast('Spot name is required'); return; }
+  const radius = parseFloat($('#f-gfradius').value) || 1;
+  S.geofences.push({ id: uid(), name, lat: gps.lat, lng: gps.lng, radiusKm: radius });
+  window._gfGps = null;
+  save(); closeModal(); renderSettings();
+  toast(`Spot "${name}" saved`);
+}
+
+/* ================= Import / Export ================= */
+function openIOModal() {
+  openModal(sheetHead('Import / Export') + `
+    <div class="field"><label class="lbl">Export</label>
+      <button class="btn btn-primary" onclick="exportData()">⬇ Download Backup JSON</button></div>
+    <div class="field"><label class="lbl">Import — paste backup JSON or choose a file</label>
+      <input type="file" id="f-iofile" accept=".json,application/json" style="margin-bottom:8px"
+        onchange="importFromFile(this)">
+      <textarea id="f-iotext" class="io-area" placeholder='{"packs":[…]}'></textarea></div>
+    <button class="btn btn-outline" onclick="importFromText()">⬆ Import Pasted JSON</button>`);
+}
+function exportData() {
+  const json = JSON.stringify(S, null, 2);
+  const d = new Date();
+  const fname = `packtracker-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('Backup downloaded');
+}
+function importFromFile(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => doImport(String(r.result));
+  r.readAsText(f);
+}
+function importFromText() {
+  const t = $('#f-iotext').value.trim();
+  if (!t) { toast('Paste backup JSON first'); return; }
+  doImport(t);
+}
+function doImport(text) {
+  let data;
+  try { data = JSON.parse(text); } catch (e) { toast('Invalid JSON'); return; }
+  if (!data || !Array.isArray(data.packs)) { toast('Not a PackTracker backup (no packs array)'); return; }
+
+  let nPacks = 0, nSess = 0;
+  const mergeById = (target, incoming, onNew) => {
+    let added = 0;
+    for (const item of (incoming || [])) {
+      if (!item || !item.id) continue;
+      if (!target.some(x => x.id === item.id)) {
+        target.push(onNew ? onNew(item) : item);
+        added++;
+      }
+    }
+    return added;
+  };
+  mergeById(S.packGroups, data.packGroups);
+  const knownGroups = new Set(S.packGroups.map(g => g.id));
+  nPacks = mergeById(S.packs, data.packs, p => {
+    if (p.groupId && !knownGroups.has(p.groupId)) p.groupId = null; // unknown group IDs → ungrouped
+    if (p.retired === undefined) p.retired = false;
+    if (!Array.isArray(p.irLog)) p.irLog = [];
+    if (!Array.isArray(p.voltLog)) p.voltLog = [];
+    return p;
+  });
+  nSess = mergeById(S.sessions, data.sessions);
+  mergeById(S.geofences, data.geofences);
+  // Settings NOT imported — local settings take priority
+
+  save(); closeModal(); render();
+  toast(nPacks || nSess ? `Imported ${nPacks} packs, ${nSess} sessions` : 'All data already present');
+}
+
+/* ================= Init ================= */
+document.addEventListener('DOMContentLoaded', () => {
+  load();
+  $$('#nav button').forEach(b => b.addEventListener('click', () => nav(b.dataset.pg)));
+  $('#b-addpack').addEventListener('click', openAddPack);
+  $('#b-io').addEventListener('click', openIOModal);
+  render();
+  // Service worker for offline (sw.js sits next to index.html)
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline support unavailable */ });
+  }
+});
+</script>
+</body>
+</html>
